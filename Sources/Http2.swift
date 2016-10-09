@@ -15,6 +15,7 @@ public protocol Http2SessionDelegate: class {
 }
 
 public enum Http2SessionError: Error {
+
     case missingInput
     case missingOutput
     case connectionTimeout
@@ -65,9 +66,7 @@ public enum Http2SessionState {
 
 public class Http2Session: NSObject {
 
-
-
-    private let url: URL
+    let url: URL
 
     public var delegate: Http2SessionDelegate?
 
@@ -77,6 +76,8 @@ public class Http2Session: NSObject {
     var state: Http2SessionState = .disconnected {
         didSet { handleStateChange(previous: oldValue) }
     }
+
+    var isCertValidated = false
 
     private var inputQueue: [UInt8]
     private let writeQueue: OperationQueue
@@ -147,6 +148,20 @@ public class Http2Session: NSObject {
         input.delegate = self
         output.delegate = self
 
+        if let scheme = url.scheme, scheme == "https" {
+            input.setProperty(StreamSocketSecurityLevel.negotiatedSSL.rawValue,
+                              forKey: Stream.PropertyKey.socketSecurityLevelKey)
+            output.setProperty(StreamSocketSecurityLevel.negotiatedSSL.rawValue,
+                               forKey: Stream.PropertyKey.socketSecurityLevelKey)
+
+            let settings: [NSObject: NSObject] = [
+                kCFStreamSSLValidatesCertificateChain: NSNumber(booleanLiteral: false),
+                ]
+
+            input.setProperty(settings, forKey: kCFStreamPropertySSLSettings as Stream.PropertyKey)
+            output.setProperty(settings, forKey: kCFStreamPropertySSLSettings as Stream.PropertyKey)
+        }
+
         CFReadStreamSetDispatchQueue(input, Http2Session.sharedQueue)
         CFWriteStreamSetDispatchQueue(output, Http2Session.sharedQueue)
 
@@ -204,7 +219,7 @@ public class Http2Session: NSObject {
         }
     }
 
-    public func disconnect() {
+    public func disconnect(error: Error? = nil) {
         writeQueue.cancelAllOperations()
         if let stream = inputStream {
             stream.close()
@@ -273,7 +288,7 @@ extension Http2Session: StreamDelegate {
         case Stream.Event.errorOccurred:
             disconnect()
             break
-
+            
         default:
             print("unknown", eventCode)
         }
