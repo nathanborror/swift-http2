@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import hpack
+import SwiftHpack
 
 public enum FrameType: UInt8 {
     case data           = 0x0
@@ -53,11 +53,18 @@ public struct Frame {
         self.stream = stream
         self.flags = flags
 
-        let encoder = hpack.Encoder()
-        let payload = encoder.encode(headers)
+        let encoder = Encoder()
+        let payload = Bytes()
+        do {
+            for (name, value) in headers {
+                try encoder.encodeHeader(out: payload, name: name, value: value)
+            }
+        } catch {
+            print(error)
+        }
 
-        self.payload = payload
-        self.length = payload.count
+        self.payload = payload.data
+        self.length = self.payload?.count ?? 0
     }
 
     public init(data: [UInt8], stream: StreamID = 0, flags: FrameFlag = 0) {

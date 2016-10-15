@@ -297,5 +297,5 @@ extension Http2Session: StreamDelegate {
 
 // Utils
 
-let isLittleEndian = Int(OSHostByteOrder()) == OSLittleEndian
-let htonl  = isLittleEndian ? _OSSwapInt32 : { $0 } // host-to-network-long
+public let isLittleEndian = Int(OSHostByteOrder()) == OSLittleEndian
+public let htonl  = isLittleEndian ? _OSSwapInt32 : { $0 } // host-to-network-long
